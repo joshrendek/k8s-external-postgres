@@ -1,0 +1,23 @@
+package: github.com/joshrendek/k8s-external-postgres
+import:
+- package: github.com/lib/pq
+- package: k8s.io/kube-openapi/pkg/util/proto
+- package: k8s.io/code-generator
+- package: k8s.io/sample-controller/pkg/apis/samplecontroller/v1alpha1
+- package: k8s.io/apiextensions-apiserver
+  subpackages:
+  - pkg/apis/apiextensions/v1beta1
+  - pkg/client/clientset/clientset
+- package: k8s.io/apimachinery
+  subpackages:
+  - pkg/api/errors
+  - pkg/apis/meta/v1
+  - pkg/fields
+  - pkg/runtime
+  - pkg/runtime/schema
+  - pkg/runtime/serializer
+- package: k8s.io/client-go
+  subpackages:
+  - rest
+  - tools/cache
+  - tools/clientcmd

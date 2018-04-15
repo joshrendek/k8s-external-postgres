@@ -1,0 +1,140 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"time"
+
+	"database/sql"
+
+	_ "github.com/lib/pq"
+
+	"github.com/joshrendek/k8s-external-postgres/client"
+	"github.com/joshrendek/k8s-external-postgres/pkg/apis/postgresql.org/v1"
+
+	"flag"
+	//apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextcs "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
+// return rest config, if path not specified assume in cluster config
+func GetClientConfig(kubeconfig string) (*rest.Config, error) {
+	if kubeconfig != "" {
+		return clientcmd.BuildConfigFromFlags("", kubeconfig)
+	}
+	return rest.InClusterConfig()
+}
+
+func main() {
+
+	kubeconf := flag.String("kubeconf", "admin.conf", "Path to a kube config. Only required if out-of-cluster.")
+	postgresURL := flag.String("postgres-uri", "postgres://localhost/template1?sslmode=disable", "URI to connect to postgres")
+	flag.Parse()
+
+	config, err := GetClientConfig(*kubeconf)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	db, err := sql.Open("postgres", *postgresURL)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := db.Ping(); err != nil {
+		panic(err)
+	}
+
+	// create clientset and create our CRD, this only need to run once
+	clientset, err := apiextcs.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// note: if the CRD exist our CreateCRD function is set to exit without an error
+	err = crd.CreateCRD(clientset)
+	if err != nil {
+		panic(err)
+	}
+
+	// Wait for the CRD to be created before we use it (only needed if its a new one)
+	time.Sleep(3 * time.Second)
+
+	// Create a new clientset which include our CRD schema
+	crdcs, scheme, err := crd.NewClient(config)
+	if err != nil {
+		panic(err)
+	}
+
+	// Create a CRD client interface
+	crdclient := client.CrdClient(crdcs, scheme, "default")
+
+	// List all Postgres objects
+	items, err := crdclient.List(meta_v1.ListOptions{})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("List:\n%s\n", items)
+
+	// Postgres Controller
+	// Watch for changes in Postgres objects and fire Add, Delete, Update callbacks
+	_, controller := cache.NewInformer(
+		crdclient.NewListWatch(),
+		&crd.Postgres{},
+		time.Minute*10,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				crdObj := obj.(*crd.Postgres)
+				stmt := fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s'", crdObj.Spec.Username, crdObj.Spec.Password)
+				if _, err := db.Exec(stmt); err != nil {
+					fmt.Println("error creating user: ", err)
+				}
+
+				dbStmt := fmt.Sprintf("CREATE DATABASE %s OWNER %s", crdObj.Spec.Database, crdObj.Spec.Username)
+				if _, err := db.Exec(dbStmt); err != nil {
+					fmt.Println("error creating database: ", err)
+				}
+
+				fmt.Println("Connecting to postgres and adding user: ", crdObj.Spec.Username, " | password: ", crdObj.Spec.Password, " | db: ", crdObj.Spec.Database)
+
+				crdObj.Status.State = "created"
+				crdObj.Status.Message = "database and user created"
+				//copy(crdObj, testCrd)
+				//_, err := crdclient.Update(testCrd)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				//crd.UpdateCRD(clientset, obj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				crdObj := obj.(*crd.Postgres)
+
+				dbStmt := fmt.Sprintf("DROP DATABASE %s", crdObj.Spec.Database)
+				if _, err := db.Exec(dbStmt); err != nil {
+					fmt.Println("error deleting database: ", err)
+				}
+
+				stmt := fmt.Sprintf("DROP ROLE %s", crdObj.Spec.Username)
+				if _, err := db.Exec(stmt); err != nil {
+					fmt.Println("error dropping user: ", err)
+				}
+
+				fmt.Printf("delete: %s \n", crdObj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				fmt.Printf("Update old: %s \n      New: %s\n", oldObj, newObj)
+			},
+		},
+	)
+
+	stop := make(chan struct{})
+	go controller.Run(stop)
+
+	// Wait forever
+	select {}
+}

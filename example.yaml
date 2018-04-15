@@ -1,0 +1,11 @@
+apiVersion: postgresql.org/v1
+kind: Postgres
+metadata:
+  name: example123
+spec:
+  username: foo
+  password: foo123456
+  database: footesting
+status:
+  message: Created, not processed yet
+  state: created
