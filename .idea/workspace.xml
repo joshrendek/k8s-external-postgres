@@ -2,12 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="ecf9096d-0b46-4989-bb13-fd05d6245d4d" name="Default" comment="">
-      <change beforePath="" afterPath="$PROJECT_DIR$/.idea/watcherTasks.xml" />
-      <change beforePath="" afterPath="$PROJECT_DIR$/controller.go" />
-      <change beforePath="" afterPath="$PROJECT_DIR$/main.go" />
-      <change beforePath="" afterPath="$PROJECT_DIR$/pkg/apis/postgresql/register.go" />
-      <change beforePath="" afterPath="$PROJECT_DIR$/pkg/apis/postgresql/v1/doc.go" />
-      <change beforePath="" afterPath="$PROJECT_DIR$/pkg/apis/postgresql/v1/register.go" />
+      <change beforePath="$PROJECT_DIR$/controller.go" afterPath="$PROJECT_DIR$/controller.go" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -31,10 +26,10 @@
       <file leaf-file-name="controller.go" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/controller.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-969">
-              <caret line="2" column="0" lean-forward="false" selection-start-line="2" selection-start-column="0" selection-end-line="2" selection-end-column="0" />
+            <state relative-caret-position="-701">
+              <caret line="316" column="57" lean-forward="false" selection-start-line="316" selection-start-column="57" selection-end-line="316" selection-end-column="57" />
               <folding>
-                <element signature="e#14#1030#0" expanded="true" />
+                <element signature="e#14#1059#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -43,9 +38,11 @@
       <file leaf-file-name="main.go" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-286">
-              <caret line="15" column="41" lean-forward="false" selection-start-line="15" selection-start-column="41" selection-end-line="15" selection-end-column="41" />
-              <folding />
+            <state relative-caret-position="265">
+              <caret line="47" column="22" lean-forward="true" selection-start-line="47" selection-start-column="22" selection-end-line="47" selection-end-column="22" />
+              <folding>
+                <element signature="e#14#564#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -104,6 +101,8 @@
   <component name="FindInProjectRecents">
     <findStrings>
       <find>List</find>
+      <find>newDeploy</find>
+      <find>newDeployment</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/Cellar/go/1.8.1/libexec" />
@@ -123,7 +122,6 @@
         <option value="$PROJECT_DIR$/client/client.go" />
         <option value="$PROJECT_DIR$/crd/crd.go" />
         <option value="$PROJECT_DIR$/kube-crd.go" />
-        <option value="$PROJECT_DIR$/controller.go" />
         <option value="$PROJECT_DIR$/main.go" />
         <option value="$PROJECT_DIR$/pkg/apis/postgresql.org/v1/doc.go" />
         <option value="$PROJECT_DIR$/pkg/apis/postgresql.org/v1/crd.go" />
@@ -133,6 +131,7 @@
         <option value="$PROJECT_DIR$/hack/update-codegen.sh" />
         <option value="$PROJECT_DIR$/pkg/apis/postgresql/v1/types.go" />
         <option value="$PROJECT_DIR$/pkg/apis/postgresql/v1/register.go" />
+        <option value="$PROJECT_DIR$/controller.go" />
       </list>
     </option>
   </component>
@@ -337,7 +336,7 @@
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="12233000" />
+    <option name="totallyTimeSpent" value="13066000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="22" width="1440" height="878" extended-state="6" />
@@ -528,14 +527,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-286">
-          <caret line="15" column="41" lean-forward="false" selection-start-line="15" selection-start-column="41" selection-end-line="15" selection-end-column="41" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/pkg/apis/postgresql/register.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -570,12 +561,22 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/main.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="265">
+          <caret line="47" column="22" lean-forward="true" selection-start-line="47" selection-start-column="22" selection-end-line="47" selection-end-column="22" />
+          <folding>
+            <element signature="e#14#564#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/controller.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-969">
-          <caret line="2" column="0" lean-forward="false" selection-start-line="2" selection-start-column="0" selection-end-line="2" selection-end-column="0" />
+        <state relative-caret-position="-701">
+          <caret line="316" column="57" lean-forward="false" selection-start-line="316" selection-start-column="57" selection-end-line="316" selection-end-column="57" />
           <folding>
-            <element signature="e#14#1030#0" expanded="true" />
+            <element signature="e#14#1059#0" expanded="true" />
           </folding>
         </state>
       </provider>
