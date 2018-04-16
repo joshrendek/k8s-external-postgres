@@ -1,6 +1,11 @@
 package v1
 
 import (
+	"reflect"
+
+	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextcs "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -14,61 +19,61 @@ const (
 	FullCRDName string = CRDPlural + "." + CRDGroup
 )
 
-// Create the CRD resource, ignore error if it already exists
-//func CreateCRD(clientset apiextcs.Interface) error {
-//	crd := &apiextv1beta1.CustomResourceDefinition{
-//		ObjectMeta: meta_v1.ObjectMeta{Name: FullCRDName},
-//		Spec: apiextv1beta1.CustomResourceDefinitionSpec{
-//			Group:   CRDGroup,
-//			Version: CRDVersion,
-//			Scope:   apiextv1beta1.NamespaceScoped,
-//			Names: apiextv1beta1.CustomResourceDefinitionNames{
-//				Plural: CRDPlural,
-//				Kind:   reflect.TypeOf(Postgres{}).Name(),
-//			},
-//		},
-//	}
-//
-//	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
-//	if err != nil && apierrors.IsAlreadyExists(err) {
-//		return nil
-//	}
-//	return err
-//	// Note the original apiextensions example adds logic to wait for creation and exception handling
-//}
+//Create the CRD resource, ignore error if it already exists
+func CreateCRD(clientset apiextcs.Interface) error {
+	crd := &apiextv1beta1.CustomResourceDefinition{
+		Spec: apiextv1beta1.CustomResourceDefinitionSpec{
+			Group:   CRDGroup,
+			Version: CRDVersion,
+			Scope:   apiextv1beta1.NamespaceScoped,
+			Names: apiextv1beta1.CustomResourceDefinitionNames{
+				Plural: CRDPlural,
+				Kind:   reflect.TypeOf(Database{}).Name(),
+			},
+		},
+	}
+	crd.ObjectMeta.Name = FullCRDName
+
+	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
+	if err != nil && apierrors.IsAlreadyExists(err) {
+		return nil
+	}
+	return err
+	// Note the original apiextensions example adds logic to wait for creation and exception handling
+}
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Definition of our CRD Postgres class
-type Postgres struct {
+// Definition of our CRD Database class
+type Database struct {
 	meta_v1.TypeMeta   `json:",inline"`
 	meta_v1.ObjectMeta `json:"metadata"`
-	Spec               PostgresConfig `json:"spec"`
-	Status             PostgresStatus `json:"status,omitempty"`
+	Spec               DatabaseConfig `json:"spec"`
+	Status             DatabaseStatus `json:"status,omitempty"`
 }
 
-type PostgresConfig struct {
+type DatabaseConfig struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Database string `json:"database"`
 }
-type PostgresSpec struct {
+type DatabaseSpec struct {
 	Foo string `json:"foo"`
 	Bar bool   `json:"bar"`
 	Baz int    `json:"baz,omitempty"`
 }
 
-type PostgresStatus struct {
+type DatabaseStatus struct {
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type PostgresList struct {
+type DatabaseList struct {
 	meta_v1.TypeMeta `json:",inline"`
 	meta_v1.ListMeta `json:"metadata"`
-	Items            []Postgres `json:"items"`
+	Items            []Database `json:"items"`
 }
 
 func NewClient(cfg *rest.Config) (*rest.RESTClient, *runtime.Scheme, error) {

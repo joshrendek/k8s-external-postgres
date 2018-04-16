@@ -5,12 +5,16 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	apiextcs "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+
 	"k8s.io/client-go/tools/clientcmd"
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
+	"github.com/joshrendek/k8s-external-postgres/pkg/apis/postgresql/v1"
 	clientset "github.com/joshrendek/k8s-external-postgres/pkg/client/clientset/versioned"
 	informers "github.com/joshrendek/k8s-external-postgres/pkg/client/informers/externalversions"
 	"k8s.io/sample-controller/pkg/signals"
@@ -42,6 +46,11 @@ func main() {
 		glog.Fatalf("Error building example clientset: %s", err.Error())
 	}
 
+	crdConfig, _ := GetClientConfig(kubeconfig)
+	crdClient, err := apiextcs.NewForConfig(crdConfig)
+
+	v1.CreateCRD(crdClient)
+
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
 	exampleInformerFactory := informers.NewSharedInformerFactory(exampleClient, time.Second*30)
 
@@ -53,6 +62,13 @@ func main() {
 	if err = controller.Run(2, stopCh); err != nil {
 		glog.Fatalf("Error running controller: %s", err.Error())
 	}
+}
+
+func GetClientConfig(kubeconfig string) (*rest.Config, error) {
+	if kubeconfig != "" {
+		return clientcmd.BuildConfigFromFlags("", kubeconfig)
+	}
+	return rest.InClusterConfig()
 }
 
 func init() {

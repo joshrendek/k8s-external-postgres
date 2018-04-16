@@ -18,10 +18,10 @@ limitations under the License.
 
 package v1
 
-// PostgresListerExpansion allows custom methods to be added to
-// PostgresLister.
-type PostgresListerExpansion interface{}
+// DatabaseListerExpansion allows custom methods to be added to
+// DatabaseLister.
+type DatabaseListerExpansion interface{}
 
-// PostgresNamespaceListerExpansion allows custom methods to be added to
-// PostgresNamespaceLister.
-type PostgresNamespaceListerExpansion interface{}
+// DatabaseNamespaceListerExpansion allows custom methods to be added to
+// DatabaseNamespaceLister.
+type DatabaseNamespaceListerExpansion interface{}

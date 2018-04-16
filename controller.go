@@ -53,7 +53,7 @@ type Controller struct {
 
 	deploymentsLister appslisters.DeploymentLister
 	deploymentsSynced cache.InformerSynced
-	foosLister        listers.PostgresLister
+	foosLister        listers.DatabaseLister
 	foosSynced        cache.InformerSynced
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
@@ -77,7 +77,7 @@ func NewController(
 	// obtain references to shared index informers for the Deployment and Foo
 	// types.
 	deploymentInformer := kubeInformerFactory.Apps().V1().Deployments()
-	fooInformer := sampleInformerFactory.Databases().V1().Postgreses()
+	fooInformer := sampleInformerFactory.Databases().V1().Databases()
 
 	// Create event broadcaster
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
@@ -235,7 +235,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Get the Foo resource with this namespace/name
-	foo, err := c.foosLister.Postgreses(namespace).Get(name)
+	foo, err := c.foosLister.Databases(namespace).Get(name)
 	if err != nil {
 		// The Foo resource may no longer exist, in which case we stop
 		// processing.
@@ -304,7 +304,7 @@ func (c *Controller) syncHandler(key string) error {
 	return nil
 }
 
-func (c *Controller) updateFooStatus(foo *samplev1alpha1.Postgres, deployment *appsv1.Deployment) error {
+func (c *Controller) updateFooStatus(foo *samplev1alpha1.Database, deployment *appsv1.Deployment) error {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
@@ -314,7 +314,7 @@ func (c *Controller) updateFooStatus(foo *samplev1alpha1.Postgres, deployment *a
 	// we must use Update instead of UpdateStatus to update the Status block of the Foo resource.
 	// UpdateStatus will not allow changes to the Spec of the resource,
 	// which is ideal for ensuring nothing other than resource status has been updated.
-	_, err := c.sampleclientset.DatabasesV1().Postgreses(foo.Namespace).Update(fooCopy)
+	_, err := c.sampleclientset.DatabasesV1().Databases(foo.Namespace).Update(fooCopy)
 	return err
 }
 
@@ -360,7 +360,7 @@ func (c *Controller) handleObject(obj interface{}) {
 			return
 		}
 
-		foo, err := c.foosLister.Postgreses(object.GetNamespace()).Get(ownerRef.Name)
+		foo, err := c.foosLister.Databases(object.GetNamespace()).Get(ownerRef.Name)
 		if err != nil {
 			glog.V(4).Infof("ignoring orphaned object '%s' of foo '%s'", object.GetSelfLink(), ownerRef.Name)
 			return

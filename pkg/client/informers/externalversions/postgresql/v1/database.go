@@ -31,59 +31,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// PostgresInformer provides access to a shared informer and lister for
-// Postgreses.
-type PostgresInformer interface {
+// DatabaseInformer provides access to a shared informer and lister for
+// Databases.
+type DatabaseInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.PostgresLister
+	Lister() v1.DatabaseLister
 }
 
-type postgresInformer struct {
+type databaseInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewPostgresInformer constructs a new informer for Postgres type.
+// NewDatabaseInformer constructs a new informer for Database type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewPostgresInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPostgresInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewDatabaseInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredDatabaseInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredPostgresInformer constructs a new informer for Postgres type.
+// NewFilteredDatabaseInformer constructs a new informer for Database type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredPostgresInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredDatabaseInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.DatabasesV1().Postgreses(namespace).List(options)
+				return client.DatabasesV1().Databases(namespace).List(options)
 			},
 			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.DatabasesV1().Postgreses(namespace).Watch(options)
+				return client.DatabasesV1().Databases(namespace).Watch(options)
 			},
 		},
-		&postgresql_v1.Postgres{},
+		&postgresql_v1.Database{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *postgresInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredPostgresInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *databaseInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredDatabaseInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *postgresInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&postgresql_v1.Postgres{}, f.defaultInformer)
+func (f *databaseInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&postgresql_v1.Database{}, f.defaultInformer)
 }
 
-func (f *postgresInformer) Lister() v1.PostgresLister {
-	return v1.NewPostgresLister(f.Informer().GetIndexer())
+func (f *databaseInformer) Lister() v1.DatabaseLister {
+	return v1.NewDatabaseLister(f.Informer().GetIndexer())
 }

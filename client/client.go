@@ -16,7 +16,7 @@ limitations under the License.
 package client
 
 import (
-	"github.com/joshrendek/k8s-external-postgres/crd"
+//	"github.com/joshrendek/k8s-external-postgres/crd"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"

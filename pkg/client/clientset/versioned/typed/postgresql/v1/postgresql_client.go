@@ -27,7 +27,7 @@ import (
 
 type DatabasesV1Interface interface {
 	RESTClient() rest.Interface
-	PostgresesGetter
+	DatabasesGetter
 }
 
 // DatabasesV1Client is used to interact with features provided by the databases.postgresql.org group.
@@ -35,8 +35,8 @@ type DatabasesV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *DatabasesV1Client) Postgreses(namespace string) PostgresInterface {
-	return newPostgreses(c, namespace)
+func (c *DatabasesV1Client) Databases(namespace string) DatabaseInterface {
+	return newDatabases(c, namespace)
 }
 
 // NewForConfig creates a new DatabasesV1Client for the given config.

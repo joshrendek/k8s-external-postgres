@@ -24,8 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// Postgreses returns a PostgresInformer.
-	Postgreses() PostgresInformer
+	// Databases returns a DatabaseInformer.
+	Databases() DatabaseInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Postgreses returns a PostgresInformer.
-func (v *version) Postgreses() PostgresInformer {
-	return &postgresInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// Databases returns a DatabaseInformer.
+func (v *version) Databases() DatabaseInformer {
+	return &databaseInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

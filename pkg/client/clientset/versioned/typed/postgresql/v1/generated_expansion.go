@@ -18,4 +18,4 @@ limitations under the License.
 
 package v1
 
-type PostgresExpansion interface{}
+type DatabaseExpansion interface{}

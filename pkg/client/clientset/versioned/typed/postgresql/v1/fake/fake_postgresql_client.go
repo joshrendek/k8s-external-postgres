@@ -28,8 +28,8 @@ type FakeDatabasesV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeDatabasesV1) Postgreses(namespace string) v1.PostgresInterface {
-	return &FakePostgreses{c, namespace}
+func (c *FakeDatabasesV1) Databases(namespace string) v1.DatabaseInterface {
+	return &FakeDatabases{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

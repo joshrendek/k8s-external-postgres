@@ -1,5 +1,5 @@
 hash: 0f29216631bf7a9dab0a771e9f4b715dcd5b6ab3ae08e6d7e0da76a11acfe71b
-updated: 2018-04-14T21:01:55.801652-04:00
+updated: 2018-04-16T07:58:02.812331-04:00
 imports:
 - name: github.com/davecgh/go-spew
   version: 782f4967f2dc4564575ca782fe2d04090b5faca8
@@ -21,10 +21,13 @@ imports:
 - name: github.com/golang/protobuf
   version: 1643683e1b54a9e88ad26d98f81400c8c9d9f4f9
   subpackages:
+  - jsonpb
   - proto
+  - protoc-gen-go/descriptor
   - ptypes
   - ptypes/any
   - ptypes/duration
+  - ptypes/struct
   - ptypes/timestamp
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
@@ -49,6 +52,8 @@ imports:
 - name: golang.org/x/crypto
   version: 49796115aa4b964c318aad4f3084fdb41e9aa067
   subpackages:
+  - bcrypt
+  - blowfish
   - ssh/terminal
 - name: golang.org/x/net
   version: 1c05540f6879653db88113bc4a2b70aec4bd491f
@@ -162,7 +167,7 @@ imports:
   - third_party/forked/golang/json
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
-  version: 11179e1670c367e523060709f0b35a878fa9de9a
+  version: 92a7e0590135445af85d49e68630552180bd9e0a
   subpackages:
   - discovery
   - discovery/fake
@@ -294,15 +299,6 @@ imports:
 - name: k8s.io/sample-controller
   version: 32ad1389a8f5758383883cc8413ea3b394fcdf78
   subpackages:
-  - pkg/apis/samplecontroller
   - pkg/apis/samplecontroller/v1alpha1
-  - pkg/client/clientset/versioned
-  - pkg/client/clientset/versioned/scheme
-  - pkg/client/clientset/versioned/typed/samplecontroller/v1alpha1
-  - pkg/client/informers/externalversions
-  - pkg/client/informers/externalversions/internalinterfaces
-  - pkg/client/informers/externalversions/samplecontroller
-  - pkg/client/informers/externalversions/samplecontroller/v1alpha1
-  - pkg/client/listers/samplecontroller/v1alpha1
   - pkg/signals
 testImports: []
