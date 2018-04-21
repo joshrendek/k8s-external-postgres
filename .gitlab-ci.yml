@@ -1,0 +1,21 @@
+stages:
+    - mirror
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+services:
+- docker:dind
+
+mirror:
+  image: $DEPLOY_IMAGE
+  stage: mirror
+  before_script:
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_DEPLOY_KEY")
+  script:
+    - git remote add github git@github.com:joshrendek/k8s-external-postgres.git
+    - git push -u github master
+  only:
+    - master
+
