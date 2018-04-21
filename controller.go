@@ -25,6 +25,7 @@ import (
 	samplescheme "github.com/joshrendek/k8s-external-postgres/pkg/client/clientset/versioned/scheme"
 	informers "github.com/joshrendek/k8s-external-postgres/pkg/client/informers/externalversions"
 	listers "github.com/joshrendek/k8s-external-postgres/pkg/client/listers/postgresql/v1"
+	"github.com/rs/zerolog/log"
 )
 
 const controllerAgentName = "sample-controller-foobar"
@@ -247,69 +248,33 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	deploymentName := foo.Spec.Username
-	if deploymentName == "" {
-		// We choose to absorb the error here as the worker would requeue the
-		// resource otherwise. Instead, the next time the resource is updated
-		// the resource will be queued again.
-		runtime.HandleError(fmt.Errorf("%s: deployment name must be specified", key))
-		return nil
+	switch foo.Status.State {
+	case "provisioned":
+		log.Debug().Str("username", foo.Spec.Username).Str("database", foo.Spec.Database).Msg("already provisioned")
+	default:
+		log.Debug().Str("username", foo.Spec.Username).
+			Str("password", foo.Spec.Password).
+			Str("database", foo.Spec.Database).
+			Msg("provisioning")
+
+		// Finally, we update the status block of the Foo resource to reflect the
+		// current state of the world
+		err = c.updateFooStatus(foo, "successful", "provisioned")
+		if err != nil {
+			return err
+		}
 	}
-
-	// Get the deployment with the name specified in Foo.spec
-	deployment, err := c.deploymentsLister.Deployments(foo.Namespace).Get(deploymentName)
-	// If the resource doesn't exist, we'll create it
-	//if errors.IsNotFound(err) {
-	//	deployment, err = c.kubeclientset.AppsV1().Deployments(foo.Namespace).Create(newDeployment(foo))
-	//}
-
-	// If an error occurs during Get/Create, we'll requeue the item so we can
-	// attempt processing again later. This could have been caused by a
-	// temporary network failure, or any other transient reason.
-	if err != nil {
-		return err
-	}
-
-	// If the Deployment is not controlled by this Foo resource, we should log
-	// a warning to the event recorder and ret
-	if !metav1.IsControlledBy(deployment, foo) {
-		msg := fmt.Sprintf(MessageResourceExists, deployment.Name)
-		c.recorder.Event(foo, corev1.EventTypeWarning, ErrResourceExists, msg)
-		return fmt.Errorf(msg)
-	}
-
-	//// If this number of the replicas on the Foo resource is specified, and the
-	//// number does not equal the current desired replicas on the Deployment, we
-	//// should update the Deployment resource.
-	//if foo.Spec.Replicas != nil && *foo.Spec.Replicas != *deployment.Spec.Replicas {
-	//	glog.V(4).Infof("Foo %s replicas: %d, deployment replicas: %d", name, *foo.Spec.Replicas, *deployment.Spec.Replicas)
-	//	deployment, err = c.kubeclientset.AppsV1().Deployments(foo.Namespace).Update(newDeployment(foo))
-	//}
-
-	// If an error occurs during Update, we'll requeue the item so we can
-	// attempt processing again later. THis could have been caused by a
-	// temporary network failure, or any other transient reason.
-	//if err != nil {
-	//	return err
-	//}
-
-	// Finally, we update the status block of the Foo resource to reflect the
-	// current state of the world
-	err = c.updateFooStatus(foo, deployment)
-	if err != nil {
-		return err
-	}
-
 	c.recorder.Event(foo, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
 
-func (c *Controller) updateFooStatus(foo *samplev1alpha1.Database, deployment *appsv1.Deployment) error {
+func (c *Controller) updateFooStatus(foo *samplev1alpha1.Database, message, state string) error {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
 	fooCopy := foo.DeepCopy()
-	fooCopy.Status.Message = "testing"
+	fooCopy.Status.Message = message
+	fooCopy.Status.State = state
 	// If the CustomResourceSubresources feature gate is not enabled,
 	// we must use Update instead of UpdateStatus to update the Status block of the Foo resource.
 	// UpdateStatus will not allow changes to the Spec of the resource,
