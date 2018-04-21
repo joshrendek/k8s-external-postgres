@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	"database/sql"
+
 	"github.com/golang/glog"
+	_ "github.com/lib/pq"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -21,6 +24,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	samplev1alpha1 "github.com/joshrendek/k8s-external-postgres/pkg/apis/postgresql/v1"
+	v1 "github.com/joshrendek/k8s-external-postgres/pkg/apis/postgresql/v1"
 	clientset "github.com/joshrendek/k8s-external-postgres/pkg/client/clientset/versioned"
 	samplescheme "github.com/joshrendek/k8s-external-postgres/pkg/client/clientset/versioned/scheme"
 	informers "github.com/joshrendek/k8s-external-postgres/pkg/client/informers/externalversions"
@@ -66,6 +70,7 @@ type Controller struct {
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
 	recorder record.EventRecorder
+	DB       *sql.DB
 }
 
 // NewController returns a new sample controller
@@ -90,6 +95,15 @@ func NewController(
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
+	db, err := sql.Open("postgres", postgresURL)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := db.Ping(); err != nil {
+		panic(err)
+	}
+
 	controller := &Controller{
 		kubeclientset:     kubeclientset,
 		sampleclientset:   sampleclientset,
@@ -99,6 +113,7 @@ func NewController(
 		foosSynced:        fooInformer.Informer().HasSynced,
 		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Foos"),
 		recorder:          recorder,
+		DB:                db,
 	}
 
 	glog.Info("Setting up event handlers")
@@ -107,6 +122,22 @@ func NewController(
 		AddFunc: controller.enqueueFoo,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueFoo(new)
+		},
+		// can't call enqueueFoo since it'll be deleted by the time the work queue gets it,
+		// handle it immediately instead
+		DeleteFunc: func(obj interface{}) {
+			dbResource := obj.(*v1.Database)
+
+			dbStmt := fmt.Sprintf("DROP DATABASE %s", dbResource.Spec.Database)
+			if _, err := db.Exec(dbStmt); err != nil {
+				fmt.Println("error deleting database: ", err)
+			}
+
+			stmt := fmt.Sprintf("DROP ROLE %s", dbResource.Spec.Username)
+			if _, err := db.Exec(stmt); err != nil {
+				fmt.Println("error dropping user: ", err)
+			}
+			log.Debug().Str("database", dbResource.Spec.Database).Msg("dropping database")
 		},
 	})
 	// Set up an event handler for when Deployment resources change. This
@@ -248,19 +279,37 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
+	username := foo.Spec.Username
+	password := foo.Spec.Password
+	database := foo.Spec.Database
+
 	switch foo.Status.State {
 	case "provisioned":
-		log.Debug().Str("username", foo.Spec.Username).Str("database", foo.Spec.Database).Msg("already provisioned")
+		log.Debug().Str("username", username).Str("database", database).Msg("already provisioned")
+	case "error":
+		log.Debug().Str("error", foo.Status.Message).Msg("error provisioning")
 	default:
-		log.Debug().Str("username", foo.Spec.Username).
-			Str("password", foo.Spec.Password).
-			Str("database", foo.Spec.Database).
+		log.Debug().Str("username", username).
+			Str("password", password).
+			Str("database", database).
 			Msg("provisioning")
 
-		// Finally, we update the status block of the Foo resource to reflect the
-		// current state of the world
-		err = c.updateFooStatus(foo, "successful", "provisioned")
-		if err != nil {
+		stmt := fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s'", username, password)
+		if _, err := c.DB.Exec(stmt); err != nil {
+			if err := c.updateFooStatus(foo, fmt.Sprintf("Error creating user: %s", err.Error()), "error"); err != nil {
+				return err
+			}
+			fmt.Println("error creating user: ", err)
+		}
+
+		dbStmt := fmt.Sprintf("CREATE DATABASE %s OWNER %s", database, username)
+		if _, err := c.DB.Exec(dbStmt); err != nil {
+			if err := c.updateFooStatus(foo, fmt.Sprintf("Error creating database: %s", err.Error()), "error"); err != nil {
+				return err
+			}
+		}
+
+		if err := c.updateFooStatus(foo, "successful", "provisioned"); err != nil {
 			return err
 		}
 	}
@@ -302,6 +351,7 @@ func (c *Controller) enqueueFoo(obj interface{}) {
 // It then enqueues that Foo resource to be processed. If the object does not
 // have an appropriate OwnerReference, it will simply be skipped.
 func (c *Controller) handleObject(obj interface{}) {
+	fmt.Println("deleteing")
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {

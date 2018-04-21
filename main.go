@@ -17,12 +17,14 @@ import (
 	"github.com/joshrendek/k8s-external-postgres/pkg/apis/postgresql/v1"
 	clientset "github.com/joshrendek/k8s-external-postgres/pkg/client/clientset/versioned"
 	informers "github.com/joshrendek/k8s-external-postgres/pkg/client/informers/externalversions"
+	_ "github.com/lib/pq"
 	"k8s.io/sample-controller/pkg/signals"
 )
 
 var (
-	masterURL  string
-	kubeconfig string
+	masterURL   string
+	kubeconfig  string
+	postgresURL string
 )
 
 func main() {
@@ -51,8 +53,8 @@ func main() {
 
 	v1.CreateCRD(crdClient)
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
-	exampleInformerFactory := informers.NewSharedInformerFactory(exampleClient, time.Second*30)
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*1)
+	exampleInformerFactory := informers.NewSharedInformerFactory(exampleClient, time.Second*1)
 
 	controller := NewController(kubeClient, exampleClient, kubeInformerFactory, exampleInformerFactory)
 
@@ -74,4 +76,5 @@ func GetClientConfig(kubeconfig string) (*rest.Config, error) {
 func init() {
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
 	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	flag.StringVar(&postgresURL, "postgres-uri", "postgres://localhost/template1?sslmode=disable", "URI to connect to postgres")
 }
