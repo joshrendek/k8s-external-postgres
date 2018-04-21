@@ -13,6 +13,8 @@ mirror:
   before_script:
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$SSH_DEPLOY_KEY")
+    - mkdir -p ~/.ssh
+    - ssh-keyscan -H github.com >> ~/.ssh/known_hosts
   script:
     - git remote add github git@github.com:joshrendek/k8s-external-postgres.git
     - git push -u github master
