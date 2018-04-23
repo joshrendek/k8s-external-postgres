@@ -8,17 +8,14 @@ import (
 
 	"github.com/golang/glog"
 	_ "github.com/lib/pq"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	appslisters "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -53,13 +50,11 @@ const (
 type Controller struct {
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
-	// sampleclientset is a clientset for our own API group
-	sampleclientset clientset.Interface
+	// databaseClientset is a clientset for our own API group
+	databaseClientset clientset.Interface
 
-	deploymentsLister appslisters.DeploymentLister
-	deploymentsSynced cache.InformerSynced
-	foosLister        listers.DatabaseLister
-	foosSynced        cache.InformerSynced
+	DatabasesLister listers.DatabaseLister
+	DatabasesSynced cache.InformerSynced
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -76,14 +71,12 @@ type Controller struct {
 // NewController returns a new sample controller
 func NewController(
 	kubeclientset kubernetes.Interface,
-	sampleclientset clientset.Interface,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	sampleInformerFactory informers.SharedInformerFactory) *Controller {
+	databaseClientset clientset.Interface,
+	databaseInformerFactory informers.SharedInformerFactory) *Controller {
 
 	// obtain references to shared index informers for the Deployment and Foo
 	// types.
-	deploymentInformer := kubeInformerFactory.Apps().V1().Deployments()
-	fooInformer := sampleInformerFactory.Databases().V1().Databases()
+	databaseInformer := databaseInformerFactory.Databases().V1().Databases()
 
 	// Create event broadcaster
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
@@ -106,11 +99,9 @@ func NewController(
 
 	controller := &Controller{
 		kubeclientset:     kubeclientset,
-		sampleclientset:   sampleclientset,
-		deploymentsLister: deploymentInformer.Lister(),
-		deploymentsSynced: deploymentInformer.Informer().HasSynced,
-		foosLister:        fooInformer.Lister(),
-		foosSynced:        fooInformer.Informer().HasSynced,
+		databaseClientset: databaseClientset,
+		DatabasesLister:   databaseInformer.Lister(),
+		DatabasesSynced:   databaseInformer.Informer().HasSynced,
 		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Foos"),
 		recorder:          recorder,
 		DB:                db,
@@ -118,12 +109,12 @@ func NewController(
 
 	glog.Info("Setting up event handlers")
 	// Set up an event handler for when Foo resources change
-	fooInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueFoo,
+	databaseInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.enqueueDatabase,
 		UpdateFunc: func(old, new interface{}) {
-			controller.enqueueFoo(new)
+			controller.enqueueDatabase(new)
 		},
-		// can't call enqueueFoo since it'll be deleted by the time the work queue gets it,
+		// can't call enqueueDatabase since it'll be deleted by the time the work queue gets it,
 		// handle it immediately instead
 		DeleteFunc: func(obj interface{}) {
 			dbResource := obj.(*v1.Database)
@@ -140,27 +131,6 @@ func NewController(
 			log.Debug().Str("database", dbResource.Spec.Database).Msg("dropping database")
 		},
 	})
-	// Set up an event handler for when Deployment resources change. This
-	// handler will lookup the owner of the given Deployment, and if it is
-	// owned by a Foo resource will enqueue that Foo resource for
-	// processing. This way, we don't need to implement custom logic for
-	// handling Deployment resources. More info on this pattern:
-	// https://github.com/kubernetes/community/blob/8cafef897a22026d42f5e5bb3f104febe7e29830/contributors/devel/controllers.md
-	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.handleObject,
-		UpdateFunc: func(old, new interface{}) {
-			newDepl := new.(*appsv1.Deployment)
-			oldDepl := old.(*appsv1.Deployment)
-			if newDepl.ResourceVersion == oldDepl.ResourceVersion {
-				// Periodic resync will send update events for all known Deployments.
-				// Two different versions of the same Deployment will always have different RVs.
-				return
-			}
-			controller.handleObject(new)
-		},
-		DeleteFunc: controller.handleObject,
-	})
-
 	return controller
 }
 
@@ -173,11 +143,11 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	defer c.workqueue.ShutDown()
 
 	// Start the informer factories to begin populating the informer caches
-	glog.Info("Starting Foo controller")
+	glog.Info("Starting Database controller")
 
 	// Wait for the caches to be synced before starting workers
 	glog.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.deploymentsSynced, c.foosSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.DatabasesSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
@@ -266,28 +236,28 @@ func (c *Controller) syncHandler(key string) error {
 		return nil
 	}
 
-	// Get the Foo resource with this namespace/name
-	foo, err := c.foosLister.Databases(namespace).Get(name)
+	// Get the database resource with this namespace/name
+	dbResource, err := c.DatabasesLister.Databases(namespace).Get(name)
 	if err != nil {
 		// The Foo resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			runtime.HandleError(fmt.Errorf("foo '%s' in work queue no longer exists", key))
+			runtime.HandleError(fmt.Errorf("dbResource '%s' in work queue no longer exists", key))
 			return nil
 		}
 
 		return err
 	}
 
-	username := foo.Spec.Username
-	password := foo.Spec.Password
-	database := foo.Spec.Database
+	username := dbResource.Spec.Username
+	password := dbResource.Spec.Password
+	database := dbResource.Spec.Database
 
-	switch foo.Status.State {
+	switch dbResource.Status.State {
 	case "provisioned":
 		log.Debug().Str("username", username).Str("database", database).Msg("already provisioned")
 	case "error":
-		log.Debug().Str("error", foo.Status.Message).Msg("error provisioning")
+		log.Debug().Str("error", dbResource.Status.Message).Msg("error provisioning")
 	default:
 		log.Debug().Str("username", username).
 			Str("password", password).
@@ -296,7 +266,7 @@ func (c *Controller) syncHandler(key string) error {
 
 		stmt := fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s'", username, password)
 		if _, err := c.DB.Exec(stmt); err != nil {
-			if err := c.updateFooStatus(foo, fmt.Sprintf("Error creating user: %s", err.Error()), "error"); err != nil {
+			if err := c.updateFooStatus(dbResource, fmt.Sprintf("Error creating user: %s", err.Error()), "error"); err != nil {
 				return err
 			}
 			fmt.Println("error creating user: ", err)
@@ -304,38 +274,38 @@ func (c *Controller) syncHandler(key string) error {
 
 		dbStmt := fmt.Sprintf("CREATE DATABASE %s OWNER %s", database, username)
 		if _, err := c.DB.Exec(dbStmt); err != nil {
-			if err := c.updateFooStatus(foo, fmt.Sprintf("Error creating database: %s", err.Error()), "error"); err != nil {
+			if err := c.updateFooStatus(dbResource, fmt.Sprintf("Error creating database: %s", err.Error()), "error"); err != nil {
 				return err
 			}
 		}
 
-		if err := c.updateFooStatus(foo, "successful", "provisioned"); err != nil {
+		if err := c.updateFooStatus(dbResource, "successful", "provisioned"); err != nil {
 			return err
 		}
 	}
-	c.recorder.Event(foo, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	c.recorder.Event(dbResource, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
 
-func (c *Controller) updateFooStatus(foo *samplev1alpha1.Database, message, state string) error {
+func (c *Controller) updateFooStatus(dbResource *samplev1alpha1.Database, message, state string) error {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
-	fooCopy := foo.DeepCopy()
+	fooCopy := dbResource.DeepCopy()
 	fooCopy.Status.Message = message
 	fooCopy.Status.State = state
 	// If the CustomResourceSubresources feature gate is not enabled,
 	// we must use Update instead of UpdateStatus to update the Status block of the Foo resource.
 	// UpdateStatus will not allow changes to the Spec of the resource,
 	// which is ideal for ensuring nothing other than resource status has been updated.
-	_, err := c.sampleclientset.DatabasesV1().Databases(foo.Namespace).Update(fooCopy)
+	_, err := c.databaseClientset.DatabasesV1().Databases(dbResource.Namespace).Update(fooCopy)
 	return err
 }
 
-// enqueueFoo takes a Foo resource and converts it into a namespace/name
+// enqueueDatabase takes a Foo resource and converts it into a namespace/name
 // string which is then put onto the work queue. This method should *not* be
 // passed resources of any type other than Foo.
-func (c *Controller) enqueueFoo(obj interface{}) {
+func (c *Controller) enqueueDatabase(obj interface{}) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -351,7 +321,6 @@ func (c *Controller) enqueueFoo(obj interface{}) {
 // It then enqueues that Foo resource to be processed. If the object does not
 // have an appropriate OwnerReference, it will simply be skipped.
 func (c *Controller) handleObject(obj interface{}) {
-	fmt.Println("deleteing")
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {
@@ -375,13 +344,13 @@ func (c *Controller) handleObject(obj interface{}) {
 			return
 		}
 
-		foo, err := c.foosLister.Databases(object.GetNamespace()).Get(ownerRef.Name)
+		db, err := c.DatabasesLister.Databases(object.GetNamespace()).Get(ownerRef.Name)
 		if err != nil {
-			glog.V(4).Infof("ignoring orphaned object '%s' of foo '%s'", object.GetSelfLink(), ownerRef.Name)
+			glog.V(4).Infof("ignoring orphaned object '%s' of db '%s'", object.GetSelfLink(), ownerRef.Name)
 			return
 		}
 
-		c.enqueueFoo(foo)
+		c.enqueueDatabase(db)
 		return
 	}
 }
