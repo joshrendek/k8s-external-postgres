@@ -19,7 +19,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
-	samplev1alpha1 "github.com/joshrendek/k8s-external-postgres/pkg/apis/postgresql/v1"
+	dbv1alpha1 "github.com/joshrendek/k8s-external-postgres/pkg/apis/postgresql/v1"
 	v1 "github.com/joshrendek/k8s-external-postgres/pkg/apis/postgresql/v1"
 	clientset "github.com/joshrendek/k8s-external-postgres/pkg/client/clientset/versioned"
 	samplescheme "github.com/joshrendek/k8s-external-postgres/pkg/client/clientset/versioned/scheme"
@@ -286,7 +286,7 @@ func (c *Controller) syncHandler(key string) error {
 	return nil
 }
 
-func (c *Controller) updateFooStatus(dbResource *samplev1alpha1.Database, message, state string) error {
+func (c *Controller) updateFooStatus(dbResource *dbv1alpha1.Database, message, state string) error {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
