@@ -15,6 +15,8 @@ import (
 
 	"os"
 
+	"path/filepath"
+
 	"github.com/joshrendek/k8s-external-postgres/pkg/apis/postgresql/v1"
 	clientset "github.com/joshrendek/k8s-external-postgres/pkg/client/clientset/versioned"
 	informers "github.com/joshrendek/k8s-external-postgres/pkg/client/informers/externalversions"
@@ -41,7 +43,12 @@ func main() {
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := signals.SetupSignalHandler()
 
+	if home := homeDir(); home != "" && kubeconfig == "" {
+		kubeconfig = filepath.Join(home, ".kube", "config")
+	}
+
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+
 	if err != nil {
 		glog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
@@ -84,4 +91,11 @@ func init() {
 	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	flag.StringVar(&postgresURL, "postgres-uri", "postgres://localhost/template1?sslmode=disable", "URI to connect to postgres")
 	flag.BoolVar(&isConsole, "console", false, "whether to console log or json log")
+}
+
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	return os.Getenv("USERPROFILE") // windows
 }
